@@ -103,7 +103,9 @@ fn spawn_input_thread(sender: mpsc::Sender<Event>, tick_rate: u64) -> thread::Jo
                 continue;
             }
             match event::read() {
-                Ok(event::Event::Key(key)) => {
+                Ok(event::Event::Key(key))
+                    if key.kind == crossterm::event::KeyEventKind::Press =>
+                {
                     if sender.send(Event::Key(key)).is_err() {
                         break;
                     }
