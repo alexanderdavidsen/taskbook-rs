@@ -16,33 +16,24 @@ pub struct AuthUser {
 impl FromRequestParts<AppState> for AuthUser {
     type Rejection = ServerError;
 
-    fn from_request_parts<'a, 'b, 'c>(
-        parts: &'a mut Parts,
-        state: &'b AppState,
-    ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Result<Self, Self::Rejection>> + Send + 'c>,
-    >
-    where
-        'a: 'c,
-        'b: 'c,
-        Self: 'c,
-    {
-        Box::pin(async move {
-            let headers = &parts.headers;
-            let token = extract_bearer_token(headers).ok_or(ServerError::Unauthorized)?;
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let headers = &parts.headers;
+        let token = extract_bearer_token(headers).ok_or(ServerError::Unauthorized)?;
 
-            let session = sqlx::query_as::<_, (Uuid,)>(
-                "SELECT user_id FROM sessions WHERE token = $1 AND expires_at > $2",
-            )
-            .bind(&token)
-            .bind(Utc::now())
-            .fetch_optional(&state.pool)
-            .await
-            .map_err(ServerError::Database)?
-            .ok_or(ServerError::Unauthorized)?;
+        let session = sqlx::query_as::<_, (Uuid,)>(
+            "SELECT user_id FROM sessions WHERE token = $1 AND expires_at > $2",
+        )
+        .bind(&token)
+        .bind(Utc::now())
+        .fetch_optional(&state.pool)
+        .await
+        .map_err(ServerError::Database)?
+        .ok_or(ServerError::Unauthorized)?;
 
-            Ok(AuthUser { user_id: session.0 })
-        })
+        Ok(AuthUser { user_id: session.0 })
     }
 }
 
